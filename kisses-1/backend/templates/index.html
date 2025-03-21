@@ -9,14 +9,57 @@
 <body>
     <div class="container">
         <h1>Kisses Makeup Recommender</h1>
-        <form id="upload-form">
-            <input type="file" id="photo" name="photo" accept="image/*" required>
-            <button type="submit">Upload Photo</button>
-        </form>
-        <div id="result"></div>
+        
+        <!-- Photo Upload Section -->
+        <div class="section">
+            <h2>Step 1: Upload Your Photo</h2>
+            <form id="upload-form">
+                <input type="file" id="photo" name="photo" accept="image/*" required>
+                <button type="submit">Upload Photo</button>
+            </form>
+            <div id="skin-tone-result"></div>
+        </div>
+
+        <!-- Questionnaire Section -->
+        <div class="section">
+            <h2>Step 2: Answer a Few Questions</h2>
+            <form id="questionnaire-form">
+                <label for="makeup-style">What's your preferred makeup style?</label>
+                <select id="makeup-style" name="makeup-style">
+                    <option value="natural">Natural</option>
+                    <option value="glam">Glam</option>
+                    <option value="bold">Bold</option>
+                </select>
+
+                <label for="skin-type">What's your skin type?</label>
+                <select id="skin-type" name="skin-type">
+                    <option value="oily">Oily</option>
+                    <option value="dry">Dry</option>
+                    <option value="combination">Combination</option>
+                </select>
+
+                <label for="budget">What's your budget range?</label>
+                <select id="budget" name="budget">
+                    <option value="20">Low ($0-$20)</option>
+                    <option value="50">Medium ($20-$50)</option>
+                    <option value="100">High ($50-$100)</option>
+                </select>
+
+                <button type="submit">Get Recommendations</button>
+            </form>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div class="section">
+            <h2>Step 3: Your Recommendations</h2>
+            <div id="recommendations">
+                <!-- Recommendations will be dynamically inserted here -->
+            </div>
+        </div>
     </div>
 
     <script>
+        // Handle photo upload
         document.getElementById('upload-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData();
@@ -28,8 +71,55 @@
             });
 
             const data = await response.json();
-            document.getElementById('result').innerText = `Detected Skin Tone: ${data.skin_tone}`;
+            document.getElementById('skin-tone-result').innerText = `Detected Skin Tone: ${data.skin_tone}`;
         });
+
+        // Handle questionnaire submission
+        document.getElementById('questionnaire-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const skinTone = document.getElementById('skin-tone-result').innerText.replace('Detected Skin Tone: ', '');
+            const makeupStyle = document.getElementById('makeup-style').value;
+            const skinType = document.getElementById('skin-type').value;
+            const budget = document.getElementById('budget').value;
+
+            const response = await fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    skin_tone: skinTone,
+                    makeup_style: makeupStyle,
+                    skin_type: skinType,
+                    budget: budget,
+                }),
+            });
+
+            const data = await response.json();
+            displayRecommendations(data);
+        });
+
+        // Function to display recommendations
+        function displayRecommendations(recommendations) {
+            const recommendationsDiv = document.getElementById('recommendations');
+            recommendationsDiv.innerHTML = '';
+
+            for (const [category, products] of Object.entries(recommendations)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.innerHTML = `<h3>${category.charAt(0).toUpperCase() + category.slice(1)}</h3>`;
+                products.forEach(product => {
+                    categoryDiv.innerHTML += `
+                        <div class="product">
+                            <img src="${product.image_link}" alt="${product.name}" width="100">
+                            <h4>${product.name}</h4>
+                            <p>Price: $${product.price}</p>
+                            <a href="${product.product_link}" target="_blank">Buy Now</a>
+                        </div>
+                    `;
+                });
+                recommendationsDiv.appendChild(categoryDiv);
+            }
+        }
     </script>
 </body>
 </html>

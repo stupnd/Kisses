@@ -42,3 +42,35 @@ button:hover {
     margin-top: 20px;
     font-size: 1.2em;
 }
+.section {
+    margin-bottom: 30px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+}
+
+select, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+button {
+    background-color: #ff6f61;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #ff4a3d;
+}
+
+#recommendations {
+    white-space: pre-wrap;
+    font-family: monospace;
+}

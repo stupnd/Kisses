@@ -2,8 +2,22 @@ from flask import Flask, request, jsonify, render_template
 import os
 import cv2
 import numpy as np
+import requests  # For making API calls
 
 app = Flask(__name__)
+
+# Function to fetch makeup products from the Makeup API
+def fetch_makeup_products(product_type, brand=None, price_range=None):
+    url = "http://makeup-api.herokuapp.com/api/v1/products.json"
+    params = {
+        "product_type": product_type,
+        "brand": brand,
+        "price_less_than": price_range,
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    return []
 
 # Route for the homepage
 @app.route('/')
@@ -26,11 +40,52 @@ def upload_photo():
     photo_path = os.path.join(uploads_dir, photo.filename)
     photo.save(photo_path)
 
-    # TODO: Add skin tone detection logic here
+    # Detect skin tone
     skin_tone = detect_skin_tone(photo_path)
-
     return jsonify({'skin_tone': skin_tone})
 
+# Route to handle questionnaire and recommendations
+@app.route('/recommend', methods=['POST'])
+def recommend():
+    data = request.json
+    skin_tone = data.get('skin_tone')
+    makeup_style = data.get('makeup_style')
+    skin_type = data.get('skin_type')
+    budget = data.get('budget')
+
+    # Fetch foundation recommendations
+    foundations = fetch_makeup_products("foundation", price_range=budget)
+    # Filter foundations based on skin tone and skin type
+    filtered_foundations = [
+        product for product in foundations
+        if skin_tone.lower() in product.get("name", "").lower() and
+           skin_type.lower() in product.get("description", "").lower()
+    ]
+
+    # Fetch lipstick recommendations
+    lipsticks = fetch_makeup_products("lipstick", price_range=budget)
+    # Filter lipsticks based on makeup style
+    filtered_lipsticks = [
+        product for product in lipsticks
+        if makeup_style.lower() in product.get("name", "").lower()
+    ]
+
+    # Fetch eyeshadow recommendations
+    eyeshadows = fetch_makeup_products("eyeshadow", price_range=budget)
+    # Filter eyeshadows based on makeup style
+    filtered_eyeshadows = [
+        product for product in eyeshadows
+        if makeup_style.lower() in product.get("name", "").lower()
+    ]
+
+    recommendations = {
+        "foundation": filtered_foundations[:3],  # Return top 3 results
+        "lipstick": filtered_lipsticks[:3],
+        "eyeshadow": filtered_eyeshadows[:3],
+    }
+    return jsonify(recommendations)
+
+# Skin tone detection functions (keep your existing implementation)
 def detect_skin_tone(image_path):
     # Load the image
     image = cv2.imread(image_path)
@@ -66,6 +121,7 @@ def detect_skin_tone(image_path):
 
     # Calculate the average color of the skin region
     average_color = cv2.mean(skin_region, mask=skin_mask)[:3]
+    print(f"Average BGR Color: {average_color}")  # Debug print
 
     # Convert the average color from BGR to a human-readable skin tone
     skin_tone = classify_skin_tone(average_color)
@@ -74,14 +130,15 @@ def detect_skin_tone(image_path):
 def classify_skin_tone(bgr_color):
     # Convert BGR to RGB
     rgb_color = (bgr_color[2], bgr_color[1], bgr_color[0])
+    print(f"Average RGB Color: {rgb_color}")  # Debug print
 
-    # Define skin tone ranges (you can adjust these based on your needs)
+    # Define updated skin tone ranges
     skin_tones = {
         "Fair": ((200, 180, 150), (255, 220, 200)),
-        "Light": ((180, 140, 120), (200, 180, 150)),
-        "Medium": ((150, 110, 90), (180, 140, 120)),
-        "Tan": ((120, 80, 60), (150, 110, 90)),
-        "Dark": ((60, 40, 30), (120, 80, 60)),
+        "Light": ((150, 100, 70), (200, 180, 150)),  # Expanded range
+        "Medium": ((120, 80, 50), (150, 100, 70)),  # Expanded range
+        "Tan": ((80, 50, 30), (120, 80, 50)),
+        "Dark": ((0, 0, 0), (80, 50, 30)),
     }
 
     # Classify the skin tone based on the average color
@@ -92,6 +149,8 @@ def classify_skin_tone(bgr_color):
             return tone
 
     return "Unknown"
+    # (Keep your existing implementation)
+    ...
 
 if __name__ == '__main__':
     app.run(debug=True)
